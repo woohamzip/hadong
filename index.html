@@ -6,7 +6,8 @@
 <title>부울포 룰렛게임</title>
 <meta property="og:title" content="부울포 룰렛게임" />
 <meta property="og:description" content="SPIN을 누르면 3초 회전 후 당첨!" />
-<meta property="og:image" content="hadong_thumbnail.png" />
+<meta property="og:image" content="https://woohamzip.github.io/hadong/hadong_thumbnail.png" />
+<meta name="twitter:image" content="https://woohamzip.github.io/hadong/hadong_thumbnail.png" />
 <meta name="theme-color" content="#0b1220" />
 <style>
   :root { color-scheme: dark; }
@@ -14,7 +15,6 @@
   body{margin:0;font-family:"Noto Sans KR",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0b1220;color:#e5e7eb}
   .wrap{max-width:980px;margin:28px auto;padding:0 16px}
   h1{margin:0 0 8px;font-weight:800}
-  .sub{color:#9aa4b2;margin-bottom:16px}
   .board{display:grid;grid-template-columns:1fr 360px;gap:18px;align-items:start}
   @media (max-width:980px){.board{grid-template-columns:1fr}}
   .card{background:#0f172a;border:1px solid #1f2937;border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
@@ -27,13 +27,11 @@
   .pill{padding:10px 12px;border:1px solid #334155;border-radius:12px;display:flex;align-items:center;justify-content:space-between;background:#0b1326}
   .pill small{color:#93a3b8}
   .badge{padding:4px 8px;border-radius:999px;font-size:12px;font-weight:800;background:#064e3b;color:#86efac}
-  .note{font-size:13px;color:#9aa4b2}
 </style>
 </head>
 <body>
   <div class="wrap">
     <h1>부울포 룰렛게임</h1>
-    <div class="sub">대상자 8명 · 총 20게임 · 1인당 기본 최대 2회 당첨 · <b>4게임은 제한 해제</b>(2회 초과 허용). SPIN을 누르면 <b>3초</b> 회전 후 <b>상단 화살표</b>가 가리키는 사람이 당첨됩니다.</div>
 
     <div class="board">
       <div class="card">
@@ -42,55 +40,40 @@
         <div class="controls">
           <button id="spin"  style="background:#22c55e;color:#052e16;">SPIN</button>
           <button id="reset" style="background:#38bdf8;color:#082f49;">RESET</button>
-          <button id="saveThumb" style="background:#f59e0b;color:#3b2600;">썸네일 PNG 저장</button>
           <button id="mute" style="background:#6b7280;color:#111827;">🔊 소리 켜짐</button>
           <div class="result" id="result">—</div>
         </div>
-        <div class="note" id="progressNote" style="margin-top:6px;">진행: 0 / 20 · 제한해제 남음: 4</div>
       </div>
 
       <div class="card">
         <h3 style="margin:0 0 8px;">참가자 (8명)</h3>
         <div class="list" id="nameList"></div>
-        <p class="note" style="margin-top:12px;">각 이름 오른쪽 숫자는 현재 당첨 횟수입니다. (기본 상한 2회, 제한해제 게임에서는 초과 가능)</p>
       </div>
     </div>
   </div>
 
 <script>
-/* ===== 설정 ===== */
-const NAMES = [
-  "김봉영","김기목","김화규","김억환",
-  "김영순","이지오","한선일","함부식"
-];
-const MAX_SPINS = 20;   // 총 게임 수
-const MAX_PER   = 2;    // 기본 1인당 최대 당첨
-const FLEX_SPINS_TOTAL = 4; // 제한 해제 게임 수(정확히 4회)
+const NAMES = ["김봉영","김기목","김화규","김억환","김영순","이지오","한선일","함부식"];
+const MAX_SPINS = 20;
+const MAX_PER   = 2;
+const FLEX_SPINS_TOTAL = 4;
 
-/* ===== 상태 ===== */
-let spinNumber = 0; // 0부터 시작 (표시는 +1)
+let spinNumber = 0;
 let flexSpinsLeft = FLEX_SPINS_TOTAL;
 const winCounts = Object.fromEntries(NAMES.map(n=>[n,0]));
-// 1..20 중 4개를 무작위로 뽑아 제한해제 회차로 지정(재로드마다 섞임)
 const flexRounds = (()=>{
   const arr = Array.from({length:MAX_SPINS},(_,i)=>i+1);
   for (let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
   return new Set(arr.slice(0,FLEX_SPINS_TOTAL));
 })();
 
-/* ===== 캔버스/렌더 ===== */
 const canvas = document.getElementById('wheel');
 const ctx = canvas.getContext('2d');
 const r = canvas.width/2;
 const center = { x:r, y:r };
 const seg = (2*Math.PI)/NAMES.length;
 let angle = 0;
-
-/* 8색 (각기 다른 컬러) */
-const COLORS = [
-  "#ef4444","#3b82f6","#22c55e","#eab308",
-  "#a855f7","#06b6d4","#f97316","#10b981"
-];
+const COLORS = ["#ef4444","#3b82f6","#22c55e","#eab308","#a855f7","#06b6d4","#f97316","#10b981"];
 
 function drawWheel(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -112,7 +95,6 @@ function drawWheel(){
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // 텍스트 (굵게/크게 + 흰색 외곽선 + 검정 채움)
     const mid = (start+end)/2;
     const tx = center.x + Math.cos(mid) * (r*0.68);
     const ty = center.y + Math.sin(mid) * (r*0.68);
@@ -129,24 +111,21 @@ function drawWheel(){
     ctx.restore();
   }
 
-  // 중심 장식
   ctx.beginPath();
   ctx.arc(center.x, center.y, 24, 0, 2*Math.PI);
   ctx.fillStyle = '#0ea5e9';
   ctx.fill();
   ctx.lineWidth = 8; ctx.strokeStyle = '#091022'; ctx.stroke();
-
   ctx.restore();
 }
 
 function getSelectedIndex(){
   const twoPi = 2*Math.PI;
   const norm = ((angle % twoPi) + twoPi) % twoPi;
-  const atTop = (twoPi - norm); // 위쪽 기준
+  const atTop = (twoPi - norm);
   return Math.floor((atTop + seg/2) / seg) % NAMES.length;
 }
 
-/* ===== 오디오 (경쾌 톤) ===== */
 let audioCtx=null, spinningOsc=null, spinGain=null, muted=false, lastTickIndex=null;
 function ensureAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
 function startSpinSound(){ if (muted) return; ensureAudio(); stopSpinSound(); spinningOsc = audioCtx.createOscillator(); spinGain = audioCtx.createGain(); spinningOsc.type='square'; spinningOsc.frequency.value=440; spinGain.gain.value=0.03; spinningOsc.connect(spinGain).connect(audioCtx.destination); spinningOsc.start(); }
@@ -155,58 +134,43 @@ function stopSpinSound(){ if(spinningOsc){try{spinningOsc.stop();}catch(e){} spi
 function playWinSound(){ if(muted) return; ensureAudio(); const notes=[523.25,659.25,783.99,987.77]; const t0=audioCtx.currentTime; notes.forEach((f,i)=>{ const o=audioCtx.createOscillator(); const g=audioCtx.createGain(); o.type='triangle'; o.frequency.value=f; g.gain.value=0.0001; o.connect(g).connect(audioCtx.destination); const st=t0+i*0.1; o.start(st); g.gain.linearRampToValueAtTime(0.06,st+0.02); g.gain.exponentialRampToValueAtTime(0.0001,st+0.28); o.stop(st+0.3); }); }
 function playTickSound(){ if(muted) return; ensureAudio(); const o=audioCtx.createOscillator(); const g=audioCtx.createGain(); o.type='square'; o.frequency.value=1500; g.gain.value=0.0001; o.connect(g).connect(audioCtx.destination); const t=audioCtx.currentTime; o.start(t); g.gain.linearRampToValueAtTime(0.05,t+0.005); g.gain.exponentialRampToValueAtTime(0.0001,t+0.04); o.stop(t+0.05); }
 
-/* ===== 당첨 로직: 1인 2회 상한 + 4회 제한해제 ===== */
 function isFlexRound(n){ return flexRounds.has(n); }
 function pickTargetIdx(){
-  // 현재 회차(표시용은 +1)
   const round = spinNumber + 1;
   const flex = isFlexRound(round);
-  // 후보 집합 구성
   let candidates = [];
-  if (!flex){
-    candidates = NAMES.filter(n => winCounts[n] < MAX_PER);
-  } else {
-    candidates = NAMES.slice(); // 제한해제: 전원 가능
-  }
-  if (candidates.length === 0){
-    // 모든 인원이 2회 이상이라면 남은 회차는 제한해제로 처리
-    candidates = NAMES.slice();
-  }
+  if (!flex){ candidates = NAMES.filter(n => winCounts[n] < MAX_PER); }
+  else { candidates = NAMES.slice(); }
+  if (candidates.length === 0){ candidates = NAMES.slice(); }
   const idx = Math.floor(Math.random() * candidates.length);
   const name = candidates[idx];
   return NAMES.indexOf(name);
 }
 
-/* ===== 스핀(3초 고정, ease-out) ===== */
 let spinning=false, rafId=null;
 function spin(){
   if (spinning) return;
-  if (spinNumber >= MAX_SPINS){
-    alert('20게임이 모두 진행되었습니다. RESET 후 다시 시작하세요.');
-    return;
-  }
+  if (spinNumber >= MAX_SPINS){ alert('20게임이 모두 진행되었습니다. RESET 후 다시 시작하세요.'); return; }
   spinning = true;
   resultEl.textContent = '회전 중…';
   spinBtn.disabled = true; resetBtn.disabled = true;
-
   ensureAudio(); startSpinSound();
 
-  const duration = 3000; // 3초
+  const duration = 3000;
   const start = performance.now();
   const startAngle = angle;
   const targetIdx = pickTargetIdx();
   const twoPi = 2*Math.PI;
   const currentNorm = ((angle % twoPi)+twoPi)%twoPi;
-  const desired = ((twoPi - (targetIdx*seg)) - seg/2 + twoPi) % twoPi; // 중앙 정렬
+  const desired = ((twoPi - (targetIdx*seg)) - seg/2 + twoPi) % twoPi;
   let delta = desired - currentNorm; if (delta < 0) delta += twoPi;
-  const spins = 5 * twoPi;  // 5바퀴
+  const spins = 5 * twoPi;
   const endAngle = startAngle + spins + delta;
 
   lastTickIndex = null;
-
   const tick = (now) => {
     let t = (now - start) / duration; if (t > 1) t = 1;
-    const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+    const eased = 1 - Math.pow(1 - t, 3);
     angle = startAngle + (endAngle - startAngle) * eased;
 
     const instVel = (endAngle - startAngle) / duration * (1 - t + 0.2) * 60;
@@ -217,27 +181,19 @@ function spin(){
 
     drawWheel();
 
-    if (t < 1){
-      rafId = requestAnimationFrame(tick);
-    } else {
+    if (t < 1){ rafId = requestAnimationFrame(tick); }
+    else {
       spinning = false; spinBtn.disabled = false; resetBtn.disabled = false;
       stopSpinSound();
-
-      // 결과 처리
       const winner = NAMES[targetIdx];
       showResult(targetIdx);
       playWinSound();
-
-      // 카운트 증가
-      const round = ++spinNumber; // 다음 회차로 증가
+      const round = ++spinNumber;
       const flex = isFlexRound(round);
       winCounts[winner] = (winCounts[winner]||0) + 1;
       if (flex) { flexSpinsLeft = Math.max(0, flexSpinsLeft - 1); }
       updateSidebar();
-
-      if (spinNumber >= MAX_SPINS){
-        resultEl.innerHTML += ' · <span class="badge">총 20게임 종료</span>';
-      }
+      if (spinNumber >= MAX_SPINS){ resultEl.innerHTML += ' · <span class="badge">총 20게임 종료</span>'; }
     }
   };
   rafId = requestAnimationFrame(tick);
@@ -247,28 +203,19 @@ function reset(){
   if (spinning) return;
   angle = 0; drawWheel();
   resultEl.innerHTML = '—';
-  // 상태 초기화
   spinNumber = 0; flexSpinsLeft = FLEX_SPINS_TOTAL;
   for (const k of Object.keys(winCounts)) winCounts[k]=0;
   updateSidebar();
 }
 
-/* ===== UI 바인딩 ===== */
 const spinBtn  = document.getElementById('spin');
 const resetBtn = document.getElementById('reset');
 const resultEl = document.getElementById('result');
-const progressNote = document.getElementById('progressNote');
 spinBtn.addEventListener('click', spin);
 resetBtn.addEventListener('click', reset);
-
 const muteBtn = document.getElementById('mute');
-muteBtn.addEventListener('click', ()=>{
-  muted = !muted;
-  muteBtn.textContent = muted ? '🔇 소리 꺼짐' : '🔊 소리 켜짐';
-  if (muted) stopSpinSound();
-});
+muteBtn.addEventListener('click', ()=>{ muted = !muted; muteBtn.textContent = muted ? '🔇 소리 꺼짐' : '🔊 소리 켜짐'; if (muted) stopSpinSound(); });
 
-/* ===== 사이드바 목록 ===== */
 const listEl = document.getElementById('nameList');
 function updateSidebar(){
   listEl.innerHTML = '';
@@ -280,10 +227,8 @@ function updateSidebar(){
     d.innerHTML = `<span>${String(i+1).padStart(2,'0')}. ${n}</span><small>${count}회${limit}</small>`;
     listEl.appendChild(d);
   });
-  progressNote.textContent = `진행: ${spinNumber} / ${MAX_SPINS} · 제한해제 남음: ${flexSpinsLeft}`;
 }
 
-/* ===== 결과 표시 ===== */
 function showResult(idx){
   const name = NAMES[idx];
   resultEl.innerHTML = `선택: <span class="badge">${name}</span>`;
@@ -292,26 +237,6 @@ function showResult(idx){
   });
 }
 
-/* ===== 썸네일 PNG 생성(선택사항) ===== */
-const saveBtn = document.getElementById('saveThumb');
-saveBtn?.addEventListener('click', () => {
-  const w=1200, h=630;
-  const c = document.createElement('canvas');
-  c.width=w; c.height=h; const g=c.getContext('2d');
-  const grad = g.createLinearGradient(0,0,w,h); grad.addColorStop(0,'#0b1220'); grad.addColorStop(1,'#0f172a'); g.fillStyle=grad; g.fillRect(0,0,w,h);
-  const vignette = g.createRadialGradient(w/2,h/2,120, w/2,h/2,640); vignette.addColorStop(0,'rgba(0,0,0,0)'); vignette.addColorStop(1,'rgba(0,0,0,0.45)'); g.fillStyle=vignette; g.fillRect(0,0,w,h);
-  g.save(); g.translate(72, 150); g.fillStyle='rgba(14,165,233,0.18)'; g.fillRect(-14,-64, 760, 108); g.fillStyle='#e5e7eb'; g.font='800 74px "Noto Sans KR", system-ui'; g.fillText('부울포 룰렛게임', 0, 0); g.font='600 30px "Noto Sans KR", system-ui'; g.fillStyle='#93c5fd'; g.fillText('8명 · 20게임 · 4회 제한해제', 0, 48); g.restore();
-  const cx=900, cy=320, R=220, count=NAMES.length; g.save(); g.translate(cx, cy+R+18); g.scale(1,0.22); g.beginPath(); g.arc(0,0,R*0.95,0,Math.PI*2); g.fillStyle='rgba(0,0,0,0.5)'; g.fill(); g.restore();
-  const ringGrad = g.createRadialGradient(cx,cy,R*0.2, cx,cy,R); ringGrad.addColorStop(0,'#d1d5db'); ringGrad.addColorStop(0.65,'#9ca3af'); ringGrad.addColorStop(1,'#6b7280'); g.beginPath(); g.arc(cx,cy,R+16,0,Math.PI*2); g.lineWidth=18; g.strokeStyle=ringGrad; g.stroke();
-  for (let i=0;i<count;i++){ const start=-Math.PI/2 + i*(2*Math.PI/count), end=start+(2*Math.PI/count); g.beginPath(); g.moveTo(cx,cy); g.arc(cx,cy,R,start,end); g.closePath(); g.fillStyle = COLORS[i%COLORS.length]; g.fill(); }
-  const midGrad = g.createRadialGradient(cx,cy,10, cx,cy,36); midGrad.addColorStop(0,'#e0f2fe'); midGrad.addColorStop(1,'#0ea5e9'); g.beginPath(); g.arc(cx,cy,24,0,Math.PI*2); g.fillStyle=midGrad; g.fill(); g.beginPath(); g.arc(cx-8, cy-8, 8, 0, Math.PI*2); g.fillStyle='rgba(255,255,255,0.65)'; g.fill();
-  g.beginPath(); g.moveTo(cx, cy-R-22); g.lineTo(cx-20, cy-R+16); g.lineTo(cx+20, cy-R+16); g.closePath(); const ptrGrad = g.createLinearGradient(cx,cy-R-22, cx,cy-R+16); ptrGrad.addColorStop(0,'#fde68a'); ptrGrad.addColorStop(1,'#f59e0b'); g.fillStyle=ptrGrad; g.fill(); g.lineWidth=3; g.strokeStyle='rgba(0,0,0,0.35)'; g.stroke();
-  const a=document.createElement('a'); a.href=c.toDataURL('image/png'); a.download='thumbnail.png'; a.click();
-});
-
-/* 초기 렌더 & 사이드바 초기화 */
-function initSidebar(){ listEl.innerHTML=''; NAMES.forEach((n,i)=>{ const d=document.createElement('div'); d.className='pill'; d.dataset.name=n; d.innerHTML=`<span>${String(i+1).padStart(2,'0')}. ${n}</span><small>0회</small>`; listEl.appendChild(d); }); }
-initSidebar();
 drawWheel();
 updateSidebar();
 </script>
