@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>부울포 룰렛게임</title>
+<meta property="og:title" content="부울포 룰렛게임" />
+<meta property="og:description" content="SPIN을 누르면 3초 회전 후 당첨!" />
+<meta property="og:image" content="/thumbnail.png" />
+<meta name="theme-color" content="#0b1220" />
+<style>
+  :root { color-scheme: dark; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Noto Sans KR",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0b1220;color:#e5e7eb}
+  .wrap{max-width:900px;margin:28px auto;padding:0 16px}
+  h1{margin:0 0 8px;font-weight:800}
+  .sub{color:#9aa4b2;margin-bottom:16px}
+  .board{display:grid;grid-template-columns:1fr 320px;gap:18px;align-items:start}
+  @media (max-width:900px){.board{grid-template-columns:1fr}}
+  .card{background:#0f172a;border:1px solid #1f2937;border-radius:16px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .pointer{width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:18px solid #facc15;margin:0 auto 8px;filter:drop-shadow(0 4px 10px rgba(0,0,0,.6))}
+  canvas{display:block;margin:0 auto;max-width:100%;background:radial-gradient(circle at 50% 50%, #091022 0 34%, transparent 34% 100%);border-radius:50%;border:10px solid #1f2937}
+  .controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+  button{border:0;border-radius:999px;padding:10px 16px;font-weight:800;cursor:pointer}
+  .result{font-size:22px;font-weight:800;margin-top:6px}
+  .list{display:grid;gap:6px}
+  .pill{padding:8px 10px;border:1px solid #334155;border-radius:999px;display:flex;align-items:center;justify-content:space-between}
+  .badge{padding:4px 8px;border-radius:999px;font-size:12px;font-weight:800;background:#064e3b;color:#86efac}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>부울포 룰렛게임</h1>
+    <div class="sub">작동 확인용 완전판입니다. SPIN을 누르면 <b>3초</b> 동안 회전 후, <b>상단 화살표</b>가 가리키는 사람이 당첨됩니다.</div>
+
+    <div class="board">
+      <div class="card">
+        <div class="pointer"></div>
+        <canvas id="wheel" width="520" height="520" aria-label="룰렛"></canvas>
+        <div class="controls">
+          <button id="spin"  style="background:#22c55e;color:#052e16;">SPIN</button>
+          <button id="reset" style="background:#38bdf8;color:#082f49;">RESET</button>
+          <button id="saveThumb" style="background:#f59e0b;color:#3b2600;">썸네일 PNG 저장</button>
+          <button id="mute" style="background:#6b7280;color:#111827;">🔊 소리 켜짐</button>
+          <div class="result" id="result">—</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin:0 0 8px;">참가자 (15명)</h3>
+        <div class="list" id="nameList"></div>
+        <p class="sub" style="margin-top:12px;">김동명, 김병영, 김봉영, 권오걸, 김기목, 김대영, 김억환, 김화규, 김영순, 이지오, 백승길, 한선일, 함종빈, 함부식, 김미애</p>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ===== 참가자 ===== */
+const NAMES = [
+  "김동명","김병영","김봉영","권오걸","김기목","김대영",
+  "김억환","김화규","김영순","이지오","백승길","한선일",
+  "함종빈","함부식","김미애"
+];
+
+/* ===== 캔버스/렌더 ===== */
+const canvas = document.getElementById('wheel');
+const ctx = canvas.getContext('2d');
+const r = canvas.width/2;
+const center = { x:r, y:r };
+const seg = (2*Math.PI)/NAMES.length;
+let angle = 0;
+
+/* 15색 (각기 다른 컬러) */
+const COLORS = [
+  "#ef4444","#3b82f6","#22c55e","#eab308","#a855f7",
+  "#06b6d4","#f97316","#84cc16","#f43f5e","#0ea5e9",
+  "#10b981","#f59e0b","#8b5cf6","#14b8a6","#fb7185"
+];
+
+function drawWheel(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.save();
+  ctx.translate(center.x, center.y);
+  ctx.rotate(angle);
+  ctx.translate(-center.x, -center.y);
+
+  for (let i=0;i<NAMES.length;i++){
+    const start = -Math.PI/2 + i*seg;
+    const end   = start + seg;
+    ctx.beginPath();
+    ctx.moveTo(center.x, center.y);
+    ctx.arc(center.x, center.y, r-6, start, end);
+    ctx.closePath();
+    ctx.fillStyle = COLORS[i % COLORS.length];
+    ctx.fill();
+    ctx.strokeStyle = '#1f2937';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // 텍스트 (굵게/크게 + 흰색 외곽선 + 검정 채움)
+    const mid = (start+end)/2;
+    const tx = center.x + Math.cos(mid) * (r*0.68);
+    const ty = center.y + Math.sin(mid) * (r*0.68);
+    ctx.save();
+    ctx.translate(tx, ty);
+    ctx.rotate(mid + Math.PI/2);
+    ctx.font = 'bold 18px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth = 4; ctx.strokeStyle = '#ffffff';
+    ctx.strokeText(NAMES[i], 0, 0);
+    ctx.fillStyle = '#000000';
+    ctx.fillText(NAMES[i], 0, 0);
+    ctx.restore();
+  }
+
+  // 중심 장식
+  ctx.beginPath();
+  ctx.arc(center.x, center.y, 24, 0, 2*Math.PI);
+  ctx.fillStyle = '#0ea5e9';
+  ctx.fill();
+  ctx.lineWidth = 8; ctx.strokeStyle = '#091022'; ctx.stroke();
+
+  ctx.restore();
+}
+
+function getSelectedIndex(){
+  const twoPi = 2*Math.PI;
+  const norm = ((angle % twoPi) + twoPi) % twoPi;
+  const atTop = (twoPi - norm); // 위쪽 기준
+  return Math.floor((atTop + seg/2) / seg) % NAMES.length;
+}
+
+/* ===== 오디오 (경쾌 톤) ===== */
+let audioCtx=null, spinningOsc=null, spinGain=null, muted=false, lastTickIndex=null;
+function ensureAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
+
+function startSpinSound(){
+  if (muted) return; ensureAudio();
+  stopSpinSound();
+  spinningOsc = audioCtx.createOscillator();
+  spinGain = audioCtx.createGain();
+  spinningOsc.type = 'square';       // 경쾌 톤
+  spinningOsc.frequency.value = 440; // A4
+  spinGain.gain.value = 0.03;
+  spinningOsc.connect(spinGain).connect(audioCtx.destination);
+  spinningOsc.start();
+}
+function modulateSpinSound(v){
+  if (!spinningOsc) return;
+  const freq = 300 + Math.min(700, v*90);
+  spinningOsc.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.05);
+  const g = 0.015 + Math.min(0.05, v*0.004);
+  spinGain.gain.setTargetAtTime(muted ? 0 : g, audioCtx.currentTime, 0.05);
+}
+function stopSpinSound(){
+  if (spinningOsc){ try{spinningOsc.stop();}catch(e){} spinningOsc.disconnect(); spinningOsc=null; }
+  if (spinGain){ try{spinGain.disconnect();}catch(e){} spinGain=null; }
+}
+function playWinSound(){
+  if (muted) return; ensureAudio();
+  // Major7 (C-E-G-B)
+  const notes = [523.25, 659.25, 783.99, 987.77];
+  const t0 = audioCtx.currentTime;
+  notes.forEach((f,i)=>{
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type='triangle'; osc.frequency.value=f;
+    g.gain.value=0.0001; osc.connect(g).connect(audioCtx.destination);
+    const st=t0+i*0.1; osc.start(st);
+    g.gain.linearRampToValueAtTime(0.06, st+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, st+0.28);
+    osc.stop(st+0.3);
+  });
+}
+function playTickSound(){
+  if (muted) return; ensureAudio();
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type='square'; osc.frequency.value=1500;
+  g.gain.value=0.0001; osc.connect(g).connect(audioCtx.destination);
+  const t=audioCtx.currentTime; osc.start(t);
+  g.gain.linearRampToValueAtTime(0.05, t+0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001, t+0.04);
+  osc.stop(t+0.05);
+}
+
+/* ===== 스핀(3초 고정, ease-out) ===== */
+let spinning=false, rafId=null;
+function spin(){
+  if (spinning) return;
+  spinning = true;
+  resultEl.textContent = '회전 중…';
+  spinBtn.disabled = true; resetBtn.disabled = true;
+
+  ensureAudio(); startSpinSound();
+
+  const duration = 3000; // 3초
+  const start = performance.now();
+  const startAngle = angle;
+  const targetIdx = Math.floor(Math.random() * NAMES.length);
+  const twoPi = 2*Math.PI;
+  const currentNorm = ((angle % twoPi)+twoPi)%twoPi;
+  const desired = ((twoPi - (targetIdx*seg)) - seg/2 + twoPi) % twoPi; // 중앙 정렬
+  let delta = desired - currentNorm; if (delta < 0) delta += twoPi;
+  const spins = 5 * twoPi;  // 5바퀴
+  const endAngle = startAngle + spins + delta;
+
+  lastTickIndex = null;
+
+  const tick = (now) => {
+    let t = (now - start) / duration; if (t > 1) t = 1;
+    const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+    angle = startAngle + (endAngle - startAngle) * eased;
+
+    // 사운드/틱
+    const instVel = (endAngle - startAngle) / duration * (1 - t + 0.2) * 60;
+    modulateSpinSound(instVel);
+    const idxNow = getSelectedIndex();
+    if (lastTickIndex === null) lastTickIndex = idxNow;
+    if (idxNow !== lastTickIndex){ lastTickIndex = idxNow; playTickSound(); }
+
+    drawWheel();
+
+    if (t < 1){
+      rafId = requestAnimationFrame(tick);
+    } else {
+      spinning = false; spinBtn.disabled = false; resetBtn.disabled = false;
+      stopSpinSound();
+      showResult(targetIdx);
+      playWinSound();
+    }
+  };
+  rafId = requestAnimationFrame(tick);
+}
+
+function reset(){
+  if (spinning) return;
+  angle = 0; drawWheel();
+  resultEl.innerHTML = '—';
+}
+
+/* ===== UI 바인딩 ===== */
+const spinBtn  = document.getElementById('spin');
+const resetBtn = document.getElementById('reset');
+const resultEl = document.getElementById('result');
+spinBtn.addEventListener('click', spin);
+resetBtn.addEventListener('click', reset);
+
+const muteBtn = document.getElementById('mute');
+muteBtn.addEventListener('click', ()=>{
+  muted = !muted;
+  muteBtn.textContent = muted ? '🔇 소리 꺼짐' : '🔊 소리 켜짐';
+  if (muted) stopSpinSound();
+});
+
+/* ===== 당첨 표시 & 목록 ===== */
+function showResult(idx){
+  const name = NAMES[idx];
+  resultEl.innerHTML = `선택: <span class="badge">${name}</span>`;
+  document.querySelectorAll('[data-name]').forEach(el=>{
+    el.style.outline = (el.dataset.name === name) ? '2px solid #22c55e' : '0';
+  });
+}
+const listEl = document.getElementById('nameList');
+NAMES.forEach((n,i)=>{
+  const d = document.createElement('div');
+  d.className = 'pill'; d.dataset.name = n;
+  d.innerHTML = `<span>${String(i+1).padStart(2,'0')}. ${n}</span>`;
+  listEl.appendChild(d);
+});
+
+/* ===== 썸네일 PNG 생성(멋진 스타일) ===== */
+const saveBtn = document.getElementById('saveThumb');
+saveBtn?.addEventListener('click', () => {
+  const w=1200, h=630;
+  const c = document.createElement('canvas');
+  c.width=w; c.height=h; const g=c.getContext('2d');
+
+  const grad = g.createLinearGradient(0,0,w,h);
+  grad.addColorStop(0,'#0b1220'); grad.addColorStop(1,'#0f172a');
+  g.fillStyle=grad; g.fillRect(0,0,w,h);
+  const vignette = g.createRadialGradient(w/2,h/2,120, w/2,h/2,640);
+  vignette.addColorStop(0,'rgba(0,0,0,0)'); vignette.addColorStop(1,'rgba(0,0,0,0.45)');
+  g.fillStyle=vignette; g.fillRect(0,0,w,h);
+
+  g.save(); g.translate(72, 150);
+  g.fillStyle = 'rgba(14,165,233,0.18)'; g.fillRect(-14,-64, 760, 108);
+  g.fillStyle='#e5e7eb'; g.font='800 74px "Noto Sans KR", system-ui'; g.fillText('부울포 룰렛게임', 0, 0);
+  g.font='600 30px "Noto Sans KR", system-ui'; g.fillStyle='#93c5fd'; g.fillText('SPIN을 누르면 3초 회전 후 당첨!', 0, 48);
+  g.restore();
+
+  const cx=900, cy=320, R=220, count=15;
+  g.save(); g.translate(cx, cy+R+18); g.scale(1,0.22);
+  g.beginPath(); g.arc(0,0,R*0.95,0,Math.PI*2); g.fillStyle='rgba(0,0,0,0.5)'; g.fill(); g.restore();
+
+  const ringGrad = g.createRadialGradient(cx,cy,R*0.2, cx,cy,R);
+  ringGrad.addColorStop(0,'#d1d5db'); ringGrad.addColorStop(0.65,'#9ca3af'); ringGrad.addColorStop(1,'#6b7280');
+  g.beginPath(); g.arc(cx,cy,R+16,0,Math.PI*2); g.lineWidth=18; g.strokeStyle=ringGrad; g.stroke();
+
+  const COLORS_LOCAL = COLORS;
+  for (let i=0;i<count;i++){
+    const start=-Math.PI/2 + i*(2*Math.PI/count), end=start+(2*Math.PI/count);
+    g.beginPath(); g.moveTo(cx,cy); g.arc(cx,cy,R,start,end); g.closePath();
+    g.fillStyle = COLORS_LOCAL[i%COLORS_LOCAL.length]; g.fill();
+  }
+
+  const midGrad = g.createRadialGradient(cx,cy,10, cx,cy,36);
+  midGrad.addColorStop(0,'#e0f2fe'); midGrad.addColorStop(1,'#0ea5e9');
+  g.beginPath(); g.arc(cx,cy,24,0,Math.PI*2); g.fillStyle=midGrad; g.fill();
+  g.beginPath(); g.arc(cx-8, cy-8, 8, 0, Math.PI*2); g.fillStyle='rgba(255,255,255,0.65)'; g.fill();
+
+  g.beginPath(); g.moveTo(cx, cy-R-22); g.lineTo(cx-20, cy-R+16); g.lineTo(cx+20, cy-R+16); g.closePath();
+  const ptrGrad = g.createLinearGradient(cx,cy-R-22, cx,cy-R+16);
+  ptrGrad.addColorStop(0,'#fde68a'); ptrGrad.addColorStop(1,'#f59e0b');
+  g.fillStyle=ptrGrad; g.fill(); g.lineWidth=3; g.strokeStyle='rgba(0,0,0,0.35)'; g.stroke();
+
+  const panelX=72, panelY=260, panelW=520, panelH=300;
+  g.fillStyle='rgba(15,23,42,0.7)'; g.fillRect(panelX,panelY,panelW,panelH);
+  g.strokeStyle='rgba(148,163,184,0.5)'; g.lineWidth=2; g.strokeRect(panelX+0.5,panelY+0.5,panelW-1,panelH-1);
+  g.fillStyle='#86efac'; g.font='700 26px "Noto Sans KR", system-ui'; g.fillText('참가자 15명', panelX+20, panelY+36);
+  g.fillStyle='#e5e7eb'; g.font='600 24px "Noto Sans KR", system-ui';
+  const rows = [
+    '김동명, 김병영, 김봉영, 권오걸, 김기목,',
+    '김대영, 김억환, 김화규, 김영순, 이지오,',
+    '백승길, 한선일, 함종빈, 함부식, 김미애'
+  ];
+  rows.forEach((t,i)=> g.fillText(t, panelX+20, panelY+80 + i*36));
+
+  const a=document.createElement('a'); a.href=c.toDataURL('image/png'); a.download='thumbnail.png'; a.click();
+});
+
+/* 초기 렌더 */
+drawWheel();
+</script>
+</body>
+</html>
